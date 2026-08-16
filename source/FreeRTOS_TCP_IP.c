@@ -860,7 +860,18 @@
                              * acceptable if the ACK field acknowledges the SYN." */
                             if( ulAckNumber == ( pxSocket->u.xTCP.xTCPWindow.ulOurSequenceNumber + 1U ) )
                             {
-                                vTCPStateChange( pxSocket, eCLOSED );
+                                /* PICODROID fix: transition to eCLOSE_WAIT, not eCLOSED.
+                                 * vTCPStateChange() only signals eSOCKET_CLOSED to a task
+                                 * blocked in FreeRTOS_connect() for the
+                                 * "connecting phase went wrong" transition
+                                 * (eCONNECT_SYN -> eCLOSE_WAIT); the eCONNECT_SYN -> eCLOSED
+                                 * transition sets no event bit at all (bBefore == bAfter ==
+                                 * not-connected), leaving the connecting task asleep in
+                                 * xEventGroupWaitBits() forever when the peer refuses the
+                                 * connection with RST.  Every other aborted-connect path
+                                 * (e.g. SYN retransmission exhaustion) already uses
+                                 * eCLOSE_WAIT for exactly this reason. */
+                                vTCPStateChange( pxSocket, eCLOSE_WAIT );
                             }
                         }
                         else
