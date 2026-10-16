@@ -1,0 +1,80 @@
+{
+  "ENTRY": "parseDNSAnswer",
+
+################################################################
+# Modeled length of the attacker-controlled DNS message.  Kept small to bound
+# the name-parse / answer-record loops, but the buffer is allocated to EXACTLY
+# this length with nondeterministic contents so any over-read is a real defect.
+# 32 bytes is enough to hold a full AAAA answer record (name ref 2 + fixed
+# header 10 + IPv6 address 16 = 28).
+  "NETWORK_BUFFER_SIZE": 32,
+
+################################################################
+# parseDNSAnswer.0 : the "for( x = 0; x < usAnswers; x++ )" answer loop.
+#   The function's own ANCOUNT sanity check forces
+#   usAnswers <= uxSourceBytesRemaining / (sizeof(DNSAnswerRecord_t)+3),
+#   i.e. <= 32/13 = 2 before the loop is entered, so 3 fully covers it.
+  "ANSWERLOOP": "parseDNSAnswer.0",
+  "ANSWERLOOP_UNWIND": "3",
+
+################################################################
+# Size of ParseSet_t::pcName, and hence of every name buffer the answer-name
+# validation decodes into or copies around.  This is a proof parameter, not a
+# property of the code: the name-decode loops are all bounded by the
+# destination size, so keeping it small keeps the proof tractable while still
+# exercising every bound check against a NETWORK_BUFFER_SIZE-byte packet.
+  "DNS_CACHE_NAME_LENGTH": 8,
+
+################################################################
+# strncpy / strcasecmp walk a DNS_CACHE_NAME_LENGTH-byte buffer; the fortified
+# spelling is bounded too because Linux and macOS emit different ones.
+  "NAMELOOP_UNWIND": "9",
+
+################################################################
+# DNS_SkipNameField.0 consumes a length octet plus at least one label byte per
+# iteration, so half the message length bounds it.
+  "SKIPLOOP_UNWIND": "__eval ({NETWORK_BUFFER_SIZE} + 1) / 2",
+
+################################################################
+# Lowered from its default of 8 only to keep this proof tractable; two pointers
+# already reach the "too many hops" branch.
+  "MAX_COMPRESSION_HOPS": 2,
+
+################################################################
+# DNS_DecodeName.0 either follows one pointer per iteration or appends a label
+# to the destination, so the hop limit plus the destination size bounds it.
+  "DECODELOOP_UNWIND": "__eval {DNS_CACHE_NAME_LENGTH} + {MAX_COMPRESSION_HOPS} + 1",
+
+################################################################
+
+  "CBMCFLAGS":
+  [
+    "--unwind 1",
+    "--unwindset {ANSWERLOOP}:{ANSWERLOOP_UNWIND}",
+    "--unwindset DNS_SkipNameField.0:{SKIPLOOP_UNWIND}",
+    "--unwindset DNS_DecodeName.0:{DECODELOOP_UNWIND}",
+    "--unwindset strcasecmp.0:{NAMELOOP_UNWIND}",
+    "--unwindset strncpy.0:{NAMELOOP_UNWIND},__builtin___strncpy_chk.0:{NAMELOOP_UNWIND}"
+  ],
+
+  "OBJS":
+  [
+    "$(ENTRY)_harness.goto",
+    "$(FREERTOS_PLUS_TCP)/source/FreeRTOS_DNS_Parser.goto",
+    "$(FREERTOS_PLUS_TCP)/test/cbmc/stubs/cbmc.goto"
+  ],
+
+  "DEF":
+  [
+    "NETWORK_BUFFER_SIZE={NETWORK_BUFFER_SIZE}",
+    "ipconfigUSE_LLMNR=1",
+    "ipconfigUSE_MDNS=1",
+    "ipconfigUSE_IPv4=1",
+    "ipconfigUSE_IPv6=1",
+    "ipconfigUSE_DNS_CACHE=0",
+    "ipconfigDNS_USE_CALLBACKS=0",
+    "ipconfigDNS_CACHE_NAME_LENGTH={DNS_CACHE_NAME_LENGTH}",
+    "dnsMAX_COMPRESSION_HOPS={MAX_COMPRESSION_HOPS}U",
+    "ipconfigDNS_CACHE_ADDRESSES_PER_ENTRY=4"
+  ]
+}

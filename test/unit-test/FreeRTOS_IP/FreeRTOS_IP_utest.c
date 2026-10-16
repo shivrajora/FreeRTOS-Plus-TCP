@@ -3443,7 +3443,7 @@ void test_prvProcessIPPacket_TCP_IPv6_HappyPath( void )
     prvAllowIPPacketIPv6_ExpectAndReturn( pxIPHeader, pxNetworkBuffer, ipSIZE_OF_IPv6_HEADER, eProcessBuffer );
     xGetExtensionOrder_ExpectAndReturn( ipPROTOCOL_TCP, 0U, 0 );
     xCheckRequiresResolution_ExpectAndReturn( pxNetworkBuffer, pdFALSE );
-    vNDRefreshCacheEntry_Ignore();
+    vNDRefreshCacheEntryAge_Ignore();
     xProcessReceivedTCPPacket_ExpectAnyArgsAndReturn( pdPASS );
 
     eResult = prvProcessIPPacket( ( IPPacket_t * ) pxIPPacket, pxNetworkBuffer );
@@ -3540,7 +3540,7 @@ void test_prvProcessIPPacket_ICMP_IPv6_HappyPath( void )
     prvAllowIPPacketIPv6_ExpectAndReturn( pxIPHeader, pxNetworkBuffer, ipSIZE_OF_IPv6_HEADER, eProcessBuffer );
     xGetExtensionOrder_ExpectAndReturn( ipPROTOCOL_ICMP_IPv6, 0U, 0 );
     xCheckRequiresResolution_ExpectAndReturn( pxNetworkBuffer, pdFALSE );
-    vNDRefreshCacheEntry_Ignore();
+    vNDRefreshCacheEntryAge_Ignore();
     prvProcessICMPMessage_IPv6_ExpectAnyArgsAndReturn( eReleaseBuffer );
 
     eResult = prvProcessIPPacket( ( IPPacket_t * ) pxIPPacket, pxNetworkBuffer );
@@ -4417,6 +4417,26 @@ void test_prvIPNetworkUpCalls_SiteLocal()
     prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_SiteLocal, ipHAS_IPV6 | ipHAS_METHOD | ipHAS_INTERFACE );
     prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_SiteLocal, ipHAS_IPV6 | ipHAS_INTERFACE );
     prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_SiteLocal, ipHAS_IPV6 | ipHAS_METHOD );
+}
+
+void test_prvIPNetworkUpCalls_UniqueLocal()
+{
+    /* Use the unique local address fd12:3456:789a:1::1 */
+    static const uint8_t ucAddress[ 16 ] =
+    {
+        0xFDU, 0x12U,
+        0x34U, 0x56U,
+        0x78U, 0x9AU,
+        0x00U, 0x01U,
+        0x00U, 0x00U,
+        0x00U, 0x00U,
+        0x00U, 0x00U,
+        0x00U, 0x01U
+    };
+
+    prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_UniqueLocal, ipHAS_IPV6 | ipHAS_METHOD | ipHAS_INTERFACE );
+    prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_UniqueLocal, ipHAS_IPV6 | ipHAS_INTERFACE );
+    prvIPNetworkUpCalls_Generic( ucAddress, eIPv6_UniqueLocal, ipHAS_IPV6 | ipHAS_METHOD );
 }
 
 void test_prvIPNetworkUpCalls_Multicast()
